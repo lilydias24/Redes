@@ -1,22 +1,21 @@
 """
-API HTTP de Cadastro de Tarefas (To-Do)
-----------------------------------------
+API HTTP de Cadastro de Alunos
+---------------------------------
 Trabalho de Redes - Tema 2: API HTTP com cliente próprio
+(versão: domínio "alunos", containerizada, servida em servidor remoto)
 
 Demonstra na prática:
 - Métodos HTTP: GET, POST, PUT, DELETE
 - Códigos de status: 200, 201, 204, 404, 422
 - JSON como formato de troca de dados
-- Statelessness: cada requisição é independente, o servidor não guarda
-  "sessão" do cliente entre chamadas (o estado das tarefas fica no servidor,
-  mas nenhuma informação sobre QUEM fez a requisição anterior é mantida)
+- Statelessness: cada requisição é independente; o servidor não guarda
+  sessão do cliente entre chamadas.
 
-Como rodar:
-    pip install fastapi uvicorn
-    uvicorn api:app --reload --port 8000
+Como rodar (local, sem Docker):
+    pip install -r requirements.txt
+    uvicorn api:app --host 0.0.0.0 --port 8000
 
-Documentação interativa (Swagger UI) gerada automaticamente em:
-    http://127.0.0.1:8000/docs
+Como rodar via Docker: ver README.md
 """
 
 from fastapi import FastAPI, HTTPException, status
@@ -25,79 +24,93 @@ from datetime import datetime
 from typing import Optional
 
 app = FastAPI(
-    title="API de Tarefas",
-    description="API REST simples para cadastro de tarefas (CRUD).",
+    title="API de Alunos",
+    description="API REST simples para cadastro de alunos (CRUD).",
     version="1.0.0",
 )
 
-# "Banco de dados" em memória (limitação: zera ao reiniciar o servidor)
-tarefas: dict[int, dict] = {}
+# "Banco de dados" em memória (limitação: zera ao reiniciar o container)
+alunos: dict[int, dict] = {}
 proximo_id = 1
 
 
-class TarefaEntrada(BaseModel):
-    titulo: str
-    concluida: bool = False
+class AlunoEntrada(BaseModel):
+    nome: str
+    matricula: str
+    curso: str
+    ativo: bool = True
 
 
-class TarefaAtualizacao(BaseModel):
-    titulo: Optional[str] = None
-    concluida: Optional[bool] = None
+class AlunoAtualizacao(BaseModel):
+    nome: Optional[str] = None
+    matricula: Optional[str] = None
+    curso: Optional[str] = None
+    ativo: Optional[bool] = None
 
 
 @app.get("/")
 def raiz():
-    return {"mensagem": "API de Tarefas no ar. Acesse /docs para a documentação."}
+    return {"mensagem": "API de Alunos no ar. Acesse /docs para a documentação."}
 
 
-@app.get("/tarefas")
-def listar_tarefas(concluida: Optional[bool] = None):
+@app.get("/alunos")
+def listar_alunos(ativo: Optional[bool] = None, curso: Optional[str] = None):
     """
-    GET /tarefas              -> lista todas
-    GET /tarefas?concluida=true  -> filtra por status (query param)
+    GET /alunos                  -> lista todos
+    GET /alunos?ativo=true       -> filtra por status (query param)
+    GET /alunos?curso=Engenharia -> filtra por curso (query param)
     """
-    if concluida is None:
-        return list(tarefas.values())
-    return [t for t in tarefas.values() if t["concluida"] == concluida]
+    resultado = list(alunos.values())
+    if ativo is not None:
+        resultado = [a for a in resultado if a["ativo"] == ativo]
+    if curso is not None:
+        resultado = [a for a in resultado if a["curso"].lower() == curso.lower()]
+    return resultado
 
 
-@app.get("/tarefas/{tarefa_id}")
-def obter_tarefa(tarefa_id: int):
-    if tarefa_id not in tarefas:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tarefa não encontrada")
-    return tarefas[tarefa_id]
+@app.get("/alunos/{aluno_id}")
+def obter_aluno(aluno_id: int):
+    if aluno_id not in alunos:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Aluno não encontrado")
+    return alunos[aluno_id]
 
 
-@app.post("/tarefas", status_code=status.HTTP_201_CREATED)
-def criar_tarefa(tarefa: TarefaEntrada):
+@app.post("/alunos", status_code=status.HTTP_201_CREATED)
+def criar_aluno(aluno: AlunoEntrada):
     global proximo_id
-    nova = {
+    novo = {
         "id": proximo_id,
-        "titulo": tarefa.titulo,
-        "concluida": tarefa.concluida,
-        "criada_em": datetime.now().isoformat(timespec="seconds"),
+        "nome": aluno.nome,
+        "matricula": aluno.matricula,
+        "curso": aluno.curso,
+        "ativo": aluno.ativo,
+        "criado_em": datetime.now().isoformat(timespec="seconds"),
     }
-    tarefas[proximo_id] = nova
+    alunos[proximo_id] = novo
     proximo_id += 1
-    return nova
+    return novo
 
 
-@app.put("/tarefas/{tarefa_id}")
-def atualizar_tarefa(tarefa_id: int, dados: TarefaAtualizacao):
-    if tarefa_id not in tarefas:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tarefa não encontrada")
+@app.put("/alunos/{aluno_id}")
+def atualizar_aluno(aluno_id: int, dados: AlunoAtualizacao):
+    if aluno_id not in alunos:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Aluno não encontrado")
 
-    tarefa = tarefas[tarefa_id]
-    if dados.titulo is not None:
-        tarefa["titulo"] = dados.titulo
-    if dados.concluida is not None:
-        tarefa["concluida"] = dados.concluida
-    return tarefa
+    aluno = alunos[aluno_id]
+    if dados.nome is not None:
+        aluno["nome"] = dados.nome
+    if dados.matricula is not None:
+        aluno["matricula"] = dados.matricula
+    if dados.curso is not None:
+        aluno["curso"] = dados.curso
+    if dados.ativo is not None:
+        aluno["ativo"] = dados.ativo
+    return aluno
 
 
-@app.delete("/tarefas/{tarefa_id}", status_code=status.HTTP_204_NO_CONTENT)
-def remover_tarefa(tarefa_id: int):
-    if tarefa_id not in tarefas:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tarefa não encontrada")
-    del tarefas[tarefa_id]
+@app.delete("/alunos/{aluno_id}", status_code=status.HTTP_204_NO_CONTENT)
+def remover_aluno(aluno_id: int):
+    if aluno_id not in alunos:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Aluno não encontrado")
+    del alunos[aluno_id]
     return None

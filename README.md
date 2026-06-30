@@ -1,164 +1,208 @@
-# API HTTP com Cliente Próprio — Cadastro de Tarefas
+# API HTTP com Cliente Próprio — Cadastro de Alunos (Docker + Servidor Remoto)
 
 **Trabalho de Redes — Tema 2**
 
-API REST de cadastro de tarefas (to-do list), construída com **FastAPI**, e um
-cliente próprio em Python (**requests**) que a consome demonstrando os
-principais métodos e conceitos de HTTP.
+API REST de cadastro de alunos, construída com **FastAPI**, empacotada em
+**Docker** e pensada para rodar em um **servidor remoto** (uma VM, um VPS, ou
+qualquer outra máquina da rede). O cliente, em Python (**requests**), roda na
+sua máquina local e consome a API através da rede.
 
 ---
 
 ## 1. Estrutura do projeto
 
 ```
-api-tarefas/
-├── api.py        # servidor (API)
-├── client.py      # cliente que consome a API
+api-alunos-docker/
+├── api.py              # servidor (API)
+├── client.py            # cliente que consome a API remota
+├── Dockerfile
+├── docker-compose.yml
+├── requirements.txt
+├── .dockerignore
 └── README.md
 ```
 
-## 2. Como rodar (tudo local)
+## 2. Arquitetura da demonstração
 
-### Pré-requisitos
-```bash
-pip install fastapi uvicorn requests
+```
+[ Seu notebook ]                          [ Servidor remoto ]
+   client.py    ----HTTP (porta 8000)---->   container Docker
+   (requests)                                 rodando api.py (FastAPI)
 ```
 
-### Passo 1 — Subir a API
-Em um terminal:
-```bash
-uvicorn api:app --reload --port 8000
-```
-A API ficará disponível em `http://127.0.0.1:8000`.
-Documentação interativa (Swagger) em `http://127.0.0.1:8000/docs`.
+O cliente roda localmente; o servidor roda em outra máquina, dentro de um
+container. Isso é o que torna a demonstração de rede mais real: existe
+tráfego de fato saindo da sua máquina até outro host.
 
-### Passo 2 — Rodar o cliente
-Em **outro** terminal:
+---
+
+## 3. Subindo a API no servidor remoto
+
+### Pré-requisitos no servidor remoto
+- Acesso via SSH
+- Docker e Docker Compose instalados (`docker --version` / `docker compose version`)
+- Porta 8000 liberada no firewall/security group (se for nuvem, ex.: AWS/GCP/Azure,
+  precisa liberar a porta 8000 de entrada nas regras de rede)
+
+### Passo 1 — Copiar o projeto para o servidor
+Do seu notebook:
 ```bash
+scp -r api-alunos-docker usuario@IP_DO_SERVIDOR:~/
+```
+
+### Passo 2 — Conectar via SSH e subir o container
+```bash
+ssh usuario@IP_DO_SERVIDOR
+cd api-alunos-docker
+docker compose up -d --build
+```
+Isso builda a imagem (`Dockerfile`) e sobe o container expondo a porta `8000`.
+
+### Passo 3 — Verificar que está no ar
+Ainda no servidor (ou de outra máquina, se a porta estiver liberada):
+```bash
+curl -i http://localhost:8000/
+docker ps          # confirma o container "api-alunos" rodando
+docker logs api-alunos -f   # acompanha os logs em tempo real (bom pro vídeo)
+```
+
+> **Sem Docker Compose?** Alternativa com Docker puro:
+> ```bash
+> docker build -t api-alunos .
+> docker run -d --name api-alunos -p 8000:8000 api-alunos
+> ```
+
+---
+
+## 4. Rodando o cliente (na sua máquina local)
+
+```bash
+pip install requests
+python client.py --host IP_DO_SERVIDOR --port 8000
+```
+ou, usando variável de ambiente:
+```bash
+export API_HOST=IP_DO_SERVIDOR
 python client.py
 ```
-O cliente vai criar, listar, atualizar, filtrar e remover tarefas,
-imprimindo o status code e o corpo de cada resposta no terminal.
 
----
+O cliente cadastra, lista, atualiza, filtra e remove alunos, imprimindo o
+status code e o corpo de cada resposta — tudo isso indo até o servidor
+remoto pela rede.
 
-## 3. Demonstração prática (roteiro para o vídeo)
-
-1. Mostrar o `api.py` rodando (uvicorn no terminal).
-2. Abrir `http://127.0.0.1:8000/docs` no navegador e mostrar os endpoints.
-3. Rodar `client.py` e comentar cada chamada (POST criando tarefas, GET
-   listando, PUT atualizando, DELETE removendo, e os erros 404/422).
-4. Repetir uma ou duas chamadas usando `curl` diretamente, para mostrar a
-   requisição "crua" sem o cliente Python (exemplos abaixo).
-5. Mostrar a captura de tráfego no Wireshark (seção 4).
-
-### Exemplos com `curl`
-
+### Testando localmente antes de ir pro servidor remoto
 ```bash
-# Listar tarefas
-curl -i http://127.0.0.1:8000/tarefas
-
-# Criar uma tarefa
-curl -i -X POST http://127.0.0.1:8000/tarefas \
-  -H "Content-Type: application/json" \
-  -d '{"titulo": "Gravar vídeo da entrega"}'
-
-# Atualizar (marcar como concluída)
-curl -i -X PUT http://127.0.0.1:8000/tarefas/1 \
-  -H "Content-Type: application/json" \
-  -d '{"concluida": true}'
-
-# Remover
-curl -i -X DELETE http://127.0.0.1:8000/tarefas/1
-
-# Forçar 404 (id que não existe)
-curl -i http://127.0.0.1:8000/tarefas/9999
+docker compose up -d --build
+python client.py --host 127.0.0.1 --port 8000
 ```
-A flag `-i` faz o curl mostrar os **headers** da resposta (status line,
-`Content-Type`, `Content-Length` etc.), que é justamente o que a captura de
-tráfego vai evidenciar no nível de pacote.
 
 ---
 
-## 4. Captura e análise de tráfego (Wireshark)
+## 5. Demonstração prática (roteiro para o vídeo)
 
-Como tudo roda em `127.0.0.1` (loopback), é preciso capturar na interface
-**Loopback** (no Windows: "Npcap Loopback Adapter"; no Linux: `lo`).
+1. Mostrar o `docker compose up -d --build` rodando no servidor remoto via SSH.
+2. `docker ps` mostrando o container ativo.
+3. Rodar `client.py --host IP_DO_SERVIDOR` no notebook, comentando cada
+   chamada (POST criando alunos, GET listando/filtrando, PUT atualizando,
+   DELETE removendo, e os erros 404/422).
+4. Repetir uma chamada com `curl` direto pro IP remoto, pra mostrar a
+   requisição "crua":
+   ```bash
+   curl -i http://IP_DO_SERVIDOR:8000/alunos
+   ```
+5. Mostrar a resolução de nome e a conectividade até o servidor (seção 6).
+6. Mostrar a captura de tráfego no Wireshark (seção 7).
 
-1. Abrir o Wireshark e selecionar a interface de loopback.
+---
+
+## 6. `dig` e `iperf3` (fazem sentido agora, com servidor remoto)
+
+### `dig` — resolução de nome
+Se o servidor remoto tiver um domínio/hostname (em vez de só IP), dá pra
+mostrar a resolução DNS antes da conexão:
+```bash
+dig meuservidor.exemplo.com
+```
+Isso evidencia o passo que falta quando se usa só IP direto: o cliente
+precisa primeiro traduzir o nome em IP via DNS antes de abrir a conexão TCP
+com a API.
+
+### `iperf3` — desempenho de rede entre cliente e servidor
+No servidor remoto (modo servidor):
+```bash
+iperf3 -s
+```
+No cliente, do seu notebook (modo cliente):
+```bash
+iperf3 -c IP_DO_SERVIDOR
+```
+Isso mostra a largura de banda real disponível entre as duas máquinas —
+útil para comentar no vídeo se a latência/throughput observada na API tem
+relação com a qualidade do link de rede.
+
+---
+
+## 7. Captura e análise de tráfego (Wireshark)
+
+Como agora cliente e servidor estão em máquinas diferentes, a captura deve
+ser feita na interface de rede real do seu notebook (Wi-Fi/Ethernet), e não
+mais no loopback.
+
+1. Abrir o Wireshark e selecionar a interface de rede usada para sair à
+   internet (Wi-Fi ou Ethernet).
 2. Aplicar o filtro:
    ```
-   tcp.port == 8000
+   ip.addr == IP_DO_SERVIDOR && tcp.port == 8000
    ```
-   ou, para ver só o tráfego já reconhecido como HTTP:
-   ```
-   http
-   ```
-3. Com a captura rodando, executar `client.py` (ou os comandos `curl` acima).
-4. Parar a captura e abrir uma requisição POST, por exemplo. Mostrar no vídeo:
-   - O **three-way handshake** TCP (SYN, SYN-ACK, ACK) antes da requisição.
-   - A requisição HTTP em si: método (`POST /tarefas HTTP/1.1`), headers
-     (`Host`, `Content-Type`, `Content-Length`) e o corpo em JSON.
-   - A resposta do servidor: status line (`HTTP/1.1 201 Created`), headers
-     e o corpo JSON retornado.
-   - Usar "Follow → HTTP Stream" no Wireshark para ver a conversa completa
-     (requisição + resposta) de forma legível.
-
-### Alternativa/complemento: `dig`
-Como aqui o servidor é local (`127.0.0.1`), não há resolução DNS real para
-demonstrar. Para cumprir esse ponto, pode-se rodar:
-```bash
-dig api.exemplo.com
-```
-e comentar no vídeo que, em um cenário real (servidor em outro host), o
-cliente precisaria primeiro resolver o nome do servidor via DNS antes de
-abrir a conexão TCP — passo que não existe quando se usa `127.0.0.1`
-diretamente.
+3. Com a captura rodando, executar `client.py` apontando para o servidor
+   remoto.
+4. No vídeo, mostrar:
+   - O **three-way handshake** TCP (SYN, SYN-ACK, ACK) com o IP remoto.
+   - A requisição HTTP (`POST /alunos HTTP/1.1`), headers (`Host`,
+     `Content-Type`, `Content-Length`) e corpo em JSON.
+   - A resposta (`HTTP/1.1 201 Created`), headers e corpo JSON.
+   - "Follow → HTTP Stream" para ver requisição + resposta juntas.
+   - Se tiver rodado `dig` antes, também dá pra mostrar a consulta DNS
+     (filtro `dns`) acontecendo antes do handshake TCP.
 
 ---
 
-## 5. Conceitos (explicação curta)
+## 8. Conceitos (explicação curta)
 
-- **HTTP**: protocolo de aplicação usado pelo cliente (`client.py`/`curl`)
-  para se comunicar com o servidor (`api.py`), seguindo o modelo
-  requisição-resposta.
-- **Métodos HTTP**:
-  - `GET` — ler dados (listar/buscar tarefas), sem efeito colateral.
-  - `POST` — criar um novo recurso (nova tarefa).
-  - `PUT` — atualizar um recurso existente.
-  - `DELETE` — remover um recurso.
-- **Códigos de status** usados na API:
-  - `200 OK` — leitura/atualização bem-sucedida.
-  - `201 Created` — recurso criado com sucesso (POST).
-  - `204 No Content` — remoção bem-sucedida, sem corpo de resposta.
-  - `404 Not Found` — tarefa com o ID informado não existe.
-  - `422 Unprocessable Entity` — corpo da requisição não passou na
-    validação (ex.: faltou o campo `titulo`).
-- **JSON**: formato usado tanto para enviar dados ao criar/atualizar
-  tarefas quanto para o servidor responder — é o "idioma" comum entre
-  cliente e servidor.
-- **Statelessness (sem estado)**: cada requisição HTTP é processada de
-  forma independente — o servidor não guarda informação de "quem perguntou
-  o quê antes". O estado das tarefas fica armazenado no servidor, mas não
-  há sessão de cliente: se o cliente fizer duas requisições seguidas, a
-  segunda não "lembra" da primeira a não ser pelos dados explícitos
-  (ex.: o ID da tarefa).
+- **HTTP**: protocolo de aplicação usado pelo `client.py`/`curl` para se
+  comunicar com a API (`api.py`) rodando no servidor remoto, seguindo o
+  modelo requisição-resposta.
+- **Métodos HTTP**: `GET` (ler), `POST` (criar), `PUT` (atualizar),
+  `DELETE` (remover).
+- **Códigos de status**: `200 OK`, `201 Created`, `204 No Content`,
+  `404 Not Found`, `422 Unprocessable Entity` (corpo inválido).
+- **JSON**: formato de troca de dados entre cliente e servidor.
+- **Statelessness**: cada requisição é processada de forma independente; o
+  servidor não guarda sessão do cliente entre chamadas — só os dados dos
+  alunos ficam armazenados no lado do servidor.
+- **Containers (Docker)**: a API roda isolada em um container, com suas
+  dependências (`requirements.txt`) empacotadas na imagem — o mesmo
+  container roda igual em qualquer máquina com Docker, o que facilita subir
+  no servidor remoto sem se preocupar com versão de Python/bibliotecas
+  instaladas na máquina host.
+- **Mapeamento de porta**: o `-p 8000:8000` (ou a seção `ports` no
+  compose) conecta a porta 8000 do container à porta 8000 do servidor
+  remoto, é isso que permite o cliente externo acessar a API.
 
 ---
 
-## 6. Limitações do experimento
+## 9. Limitações do experimento
 
-- **Ambiente local**: cliente e servidor rodam na mesma máquina
-  (`127.0.0.1`), então não há latência de rede real nem resolução DNS
-  efetiva — em produção, isso aconteceria entre hosts diferentes.
-- **Poucos clientes**: a demonstração usa apenas um cliente sequencial;
-  não foi testado comportamento sob concorrência (múltiplos clientes
-  simultâneos) ou carga.
-- **Sem persistência real**: as tarefas ficam em um dicionário em memória
-  — qualquer reinício do servidor apaga todos os dados.
-- **Ausência de segurança real**: a API usa HTTP puro (sem TLS/HTTPS), sem
-  autenticação ou autorização. Em um cenário real, seria necessário usar
-  HTTPS e algum mecanismo de autenticação (ex.: API key, OAuth2/JWT).
-- **Rede simulada**: como tudo passa pela interface de loopback, a captura
-  no Wireshark mostra o tráfego "ideal" (sem perda de pacotes, sem
-  retransmissão), o que não reflete condições de rede real.
+- **Sem persistência real**: alunos ficam em um dicionário em memória —
+  reiniciar o container apaga todos os dados (não há banco de dados).
+- **Ausência de segurança real**: API em HTTP puro (sem TLS/HTTPS), sem
+  autenticação/autorização. Qualquer um que souber o IP e a porta consegue
+  acessar a API.
+- **Rede real, mas ainda controlada**: o teste depende da qualidade do
+  link entre o notebook e o servidor remoto (Wi-Fi, provedor, distância);
+  os resultados de `iperf3` e a captura podem variar bastante dependendo
+  de onde o servidor remoto está hospedado.
+- **Poucos clientes**: a demonstração usa um único cliente sequencial; não
+  há teste de concorrência ou carga.
+- **Um único container/réplica**: não há balanceamento de carga nem
+  múltiplas instâncias da API — só um container rodando.

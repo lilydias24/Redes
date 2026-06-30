@@ -1,0 +1,7 @@
+services:
+  api-alunos:
+    build: .
+    container_name: api-alunos
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
