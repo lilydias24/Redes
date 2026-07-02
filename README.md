@@ -1,15 +1,13 @@
-# API HTTP com Cliente Próprio — Cadastro de Alunos (Docker + Servidor Remoto)
+## API HTTP com Cliente Próprio — Cadastro de Alunos (Docker + Servidor Remoto)
 
-**Trabalho de Redes — Tema 2**
+**Trabalho Final de Redes**
 
 API REST de cadastro de alunos, construída com **FastAPI**, empacotada em
 **Docker** e pensada para rodar em um **servidor remoto** (uma VM, um VPS, ou
 qualquer outra máquina da rede). O cliente, em Python (**requests**), roda na
 sua máquina local e consome a API através da rede.
 
----
-
-## 1. Estrutura do projeto
+### 1. Estrutura do projeto
 
 ```
 api-alunos-docker/
@@ -21,7 +19,7 @@ api-alunos-docker/
 └── README.md
 ```
 
-## 2. Arquitetura da demonstração
+### 2. Arquitetura da demonstração
 
 ```
 [ Seu notebook ]                          [ Servidor remoto ]
@@ -33,9 +31,7 @@ O cliente roda localmente; o servidor roda em outra máquina, dentro de um
 container. Isso é o que torna a demonstração de rede mais real: existe
 tráfego de fato saindo da sua máquina até outro host.
 
----
-
-## 3. Subindo a API no servidor remoto
+### 3. Subindo a API no servidor remoto
 
 ### Pré-requisitos no servidor remoto
 - Acesso via SSH
@@ -43,13 +39,13 @@ tráfego de fato saindo da sua máquina até outro host.
 - Porta 8000 liberada no firewall/security group (se for nuvem, ex.: AWS/GCP/Azure,
   precisa liberar a porta 8000 de entrada nas regras de rede)
 
-### Passo 1 — Copiar o projeto para o servidor
+### Passo 1 - Copiar o projeto para o servidor
 Do seu notebook:
 ```bash
 scp -r api-alunos-docker usuario@IP_DO_SERVIDOR:~/
 ```
 
-### Passo 2 — Conectar via SSH e subir o container
+### Passo 2 - Conectar via SSH e subir o container
 ```bash
 ssh usuario@IP_DO_SERVIDOR
 cd api-alunos-docker
@@ -57,12 +53,12 @@ docker compose up -d --build
 ```
 Isso builda a imagem (`Dockerfile`) e sobe o container expondo a porta `8000`.
 
-### Passo 3 — Verificar que está no ar
+### Passo 3 - Verificar que está no ar
 Ainda no servidor (ou de outra máquina, se a porta estiver liberada):
 ```bash
 curl -i http://localhost:8000/
 docker ps          # confirma o container "api-alunos" rodando
-docker logs api-alunos -f   # acompanha os logs em tempo real (bom pro vídeo)
+docker logs api-alunos -f   # acompanha os logs em tempo real
 ```
 
 > **Sem Docker Compose?** Alternativa com Docker puro:
@@ -71,9 +67,7 @@ docker logs api-alunos -f   # acompanha os logs em tempo real (bom pro vídeo)
 > docker run -d --name api-alunos -p 8000:8000 api-alunos
 > ```
 
----
-
-## 4. Rodando o cliente (na sua máquina local)
+### 4. Rodando o cliente (na sua máquina local)
 
 ```bash
 pip install requests
@@ -86,7 +80,7 @@ python client.py
 ```
 
 O cliente cadastra, lista, atualiza, filtra e remove alunos, imprimindo o
-status code e o corpo de cada resposta — tudo isso indo até o servidor
+status code e o corpo de cada resposta - tudo isso indo até o servidor
 remoto pela rede.
 
 ### Testando localmente antes de ir pro servidor remoto
@@ -95,9 +89,7 @@ docker compose up -d --build
 python client.py --host 127.0.0.1 --port 8000
 ```
 
----
-
-## 5. Demonstração prática (roteiro para o vídeo)
+### 5. Demonstração prática (roteiro para o vídeo)
 
 1. Mostrar o `docker compose up -d --build` rodando no servidor remoto via SSH.
 2. `docker ps` mostrando o container ativo.
@@ -112,11 +104,9 @@ python client.py --host 127.0.0.1 --port 8000
 5. Mostrar a resolução de nome e a conectividade até o servidor (seção 6).
 6. Mostrar a captura de tráfego no Wireshark (seção 7).
 
----
+### 6. `dig` e `iperf3` (com servidor remoto)
 
-## 6. `dig` e `iperf3` (fazem sentido agora, com servidor remoto)
-
-### `dig` — resolução de nome
+### `dig` - resolução de nome
 Se o servidor remoto tiver um domínio/hostname (em vez de só IP), dá pra
 mostrar a resolução DNS antes da conexão:
 ```bash
@@ -126,7 +116,7 @@ Isso evidencia o passo que falta quando se usa só IP direto: o cliente
 precisa primeiro traduzir o nome em IP via DNS antes de abrir a conexão TCP
 com a API.
 
-### `iperf3` — desempenho de rede entre cliente e servidor
+### `iperf3` - desempenho de rede entre cliente e servidor
 No servidor remoto (modo servidor):
 ```bash
 iperf3 -s
@@ -135,13 +125,9 @@ No cliente, do seu notebook (modo cliente):
 ```bash
 iperf3 -c IP_DO_SERVIDOR
 ```
-Isso mostra a largura de banda real disponível entre as duas máquinas —
-útil para comentar no vídeo se a latência/throughput observada na API tem
-relação com a qualidade do link de rede.
+Isso mostra a largura de banda real disponível entre as duas máquinas, para comentar se a latência/throughput observada na API tem relação com a qualidade do link de rede.
 
----
-
-## 7. Captura e análise de tráfego (Wireshark)
+### 7. Captura e análise de tráfego (Wireshark)
 
 Como agora cliente e servidor estão em máquinas diferentes, a captura deve
 ser feita na interface de rede real do seu notebook (Wi-Fi/Ethernet), e não
@@ -155,7 +141,7 @@ mais no loopback.
    ```
 3. Com a captura rodando, executar `client.py` apontando para o servidor
    remoto.
-4. No vídeo, mostrar:
+4. Mostrar:
    - O **three-way handshake** TCP (SYN, SYN-ACK, ACK) com o IP remoto.
    - A requisição HTTP (`POST /alunos HTTP/1.1`), headers (`Host`,
      `Content-Type`, `Content-Length`) e corpo em JSON.
@@ -164,9 +150,7 @@ mais no loopback.
    - Se tiver rodado `dig` antes, também dá pra mostrar a consulta DNS
      (filtro `dns`) acontecendo antes do handshake TCP.
 
----
-
-## 8. Conceitos (explicação curta)
+### 8. Conceitos (explicação curta)
 
 - **HTTP**: protocolo de aplicação usado pelo `client.py`/`curl` para se
   comunicar com a API (`api.py`) rodando no servidor remoto, seguindo o
@@ -177,23 +161,13 @@ mais no loopback.
   `404 Not Found`, `422 Unprocessable Entity` (corpo inválido).
 - **JSON**: formato de troca de dados entre cliente e servidor.
 - **Statelessness**: cada requisição é processada de forma independente; o
-  servidor não guarda sessão do cliente entre chamadas — só os dados dos
-  alunos ficam armazenados no lado do servidor.
-- **Containers (Docker)**: a API roda isolada em um container, com suas
-  dependências (`requirements.txt`) empacotadas na imagem — o mesmo
-  container roda igual em qualquer máquina com Docker, o que facilita subir
-  no servidor remoto sem se preocupar com versão de Python/bibliotecas
-  instaladas na máquina host.
-- **Mapeamento de porta**: o `-p 8000:8000` (ou a seção `ports` no
-  compose) conecta a porta 8000 do container à porta 8000 do servidor
-  remoto, é isso que permite o cliente externo acessar a API.
+  servidor não guarda sessão do cliente entre chamadas, só os dados dos alunos ficam armazenados no lado do servidor.
+- **Containers (Docker)**: a API roda isolada em um container, com suas dependências (`requirements.txt`) empacotadas na imagem, o mesmo container roda igual em qualquer máquina com Docker, o que facilita subir no servidor remoto sem se preocupar com versão de Python/bibliotecas instaladas na máquina host.
+- **Mapeamento de porta**: o `-p 8000:8000` (ou a seção `ports` no compose) conecta a porta 8000 do container à porta 8000 do servidor remoto, é isso que permite o cliente externo acessar a API.
 
----
+### 9. Limitações do experimento
 
-## 9. Limitações do experimento
-
-- **Sem persistência real**: alunos ficam em um dicionário em memória —
-  reiniciar o container apaga todos os dados (não há banco de dados).
+- **Sem persistência real**: alunos ficam em um dicionário em memória - reiniciar o container apaga todos os dados (não há banco de dados).
 - **Ausência de segurança real**: API em HTTP puro (sem TLS/HTTPS), sem
   autenticação/autorização. Qualquer um que souber o IP e a porta consegue
   acessar a API.
@@ -204,4 +178,4 @@ mais no loopback.
 - **Poucos clientes**: a demonstração usa um único cliente sequencial; não
   há teste de concorrência ou carga.
 - **Um único container/réplica**: não há balanceamento de carga nem
-  múltiplas instâncias da API — só um container rodando.
+  múltiplas instâncias da API e só um container rodando.
