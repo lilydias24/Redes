@@ -41,13 +41,6 @@ class AlunoEntrada(BaseModel):
     ativo: bool = True
 
 
-class AlunoAtualizacao(BaseModel):
-    nome: Optional[str] = None
-    matricula: Optional[str] = None
-    curso: Optional[str] = None
-    ativo: Optional[bool] = None
-
-
 @app.get("/")
 def raiz():
     return {"mensagem": "API de Alunos no ar. Acesse /docs para a documentação."}
@@ -92,19 +85,19 @@ def criar_aluno(aluno: AlunoEntrada):
 
 
 @app.put("/alunos/{aluno_id}")
-def atualizar_aluno(aluno_id: int, dados: AlunoAtualizacao):
+def atualizar_aluno(aluno_id: int, dados: AlunoEntrada):
+    """
+    PUT substitui a representação inteira do recurso: os 4 campos são
+    obrigatórios no corpo (semântica de PUT, diferente de um PATCH parcial).
+    """
     if aluno_id not in alunos:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Aluno não encontrado")
 
     aluno = alunos[aluno_id]
-    if dados.nome is not None:
-        aluno["nome"] = dados.nome
-    if dados.matricula is not None:
-        aluno["matricula"] = dados.matricula
-    if dados.curso is not None:
-        aluno["curso"] = dados.curso
-    if dados.ativo is not None:
-        aluno["ativo"] = dados.ativo
+    aluno["nome"] = dados.nome
+    aluno["matricula"] = dados.matricula
+    aluno["curso"] = dados.curso
+    aluno["ativo"] = dados.ativo
     return aluno
 
 

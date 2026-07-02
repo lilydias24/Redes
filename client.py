@@ -173,14 +173,22 @@ def main():
     exibir_header("3. GET /alunos/{id}", f"Buscando aluno com ID {ids_criados[0]}")
     r = requests.get(f"{BASE_URL}/alunos/{ids_criados[0]}")
     exibir_status(r.status_code)
-    exibir_json(r.json())
+    aluno_atual = r.json()
+    exibir_json(aluno_atual)
     console.print()
 
     # 4. PUT /alunos/{id} (atualizar)
-    exibir_header("4. PUT /alunos/{id}", "Atualizando curso do aluno")
+    # PUT substitui o recurso inteiro, então o corpo precisa trazer todos os
+    # campos obrigatórios (nome, matricula, curso, ativo) — não só o que mudou.
+    exibir_header("4. PUT /alunos/{id}", "Atualizando curso do aluno (substituição completa)")
     r = requests.put(
         f"{BASE_URL}/alunos/{ids_criados[0]}",
-        json={"curso": "Engenharia de Computação"},
+        json={
+            "nome": aluno_atual["nome"],
+            "matricula": aluno_atual["matricula"],
+            "curso": "Engenharia de Computação",
+            "ativo": aluno_atual["ativo"],
+        },
     )
     exibir_status(r.status_code)
     console.print("[yellow]📝 Curso atualizado:[/yellow]")

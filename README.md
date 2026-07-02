@@ -18,7 +18,6 @@ api-alunos-docker/
 ├── Dockerfile
 ├── docker-compose.yml
 ├── requirements.txt
-├── .dockerignore
 └── README.md
 ```
 
