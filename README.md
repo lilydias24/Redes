@@ -1,4 +1,4 @@
-## API HTTP com Cliente Próprio — Cadastro de Alunos (Docker + Servidor Remoto)
+## API HTTP com Cliente Próprio | Cadastro de Alunos (Docker + Servidor Remoto)
 
 **Trabalho Final de Redes**
 
