@@ -10,12 +10,14 @@ sua máquina local e consome a API através da rede.
 ### 1. Estrutura do projeto
 
 ```
-api-alunos-docker/
-├── api.py              # servidor (API)
+Redes/
+├── api.py               # servidor (API)
 ├── client.py            # cliente que consome a API remota
 ├── Dockerfile
 ├── docker-compose.yml
 ├── requirements.txt
+├── start.sh / start.bat # sobem o container (Linux/Mac e Windows)
+├── stop.sh / stop.bat   # derrubam o container
 └── README.md
 ```
 
@@ -40,15 +42,16 @@ tráfego de fato saindo da sua máquina até outro host.
   precisa liberar a porta 8000 de entrada nas regras de rede)
 
 ### Passo 1 - Copiar o projeto para o servidor
-Do seu notebook:
+Do seu notebook, com o repositório clonado:
 ```bash
-scp -r api-alunos-docker usuario@IP_DO_SERVIDOR:~/
+scp -r Redes usuario@IP_DO_SERVIDOR:~/
 ```
+Ou clone direto no servidor: `git clone https://github.com/lilydias24/Redes.git`.
 
 ### Passo 2 - Conectar via SSH e subir o container
 ```bash
 ssh usuario@IP_DO_SERVIDOR
-cd api-alunos-docker
+cd Redes
 docker compose up -d --build
 ```
 Isso builda a imagem (`Dockerfile`) e sobe o container expondo a porta `8000`.
